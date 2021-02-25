@@ -122,6 +122,8 @@ export class ReleaseNotes {
     core.info(
       `ℹ️ Retrieved ${prCommits.length} release commits for ${owner}/${repo}`
     )
+    
+    core.info(`configuration.use_metadata_hash: ${configuration.use_metadata_hash}`)
 
     // create array of commits for this release
     const releaseCommitHashes = prCommits.map(commmit => {
