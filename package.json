@@ -15,7 +15,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/mikepenz/release-changelog-builder.git"
+    "url": "git+https://github.com/PlayKids/release-changelog-builder-action.git"
   },
   "keywords": [
     "actions",
