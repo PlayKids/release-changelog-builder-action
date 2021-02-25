@@ -12,6 +12,7 @@ export interface Configuration {
   label_extractor: Transformer[]
   transformers: Transformer[]
   tag_resolver: TagResolver
+  use_metadata_hash: boolean
 }
 
 export interface Category {
@@ -57,5 +58,6 @@ export const DefaultConfiguration: Configuration = {
   tag_resolver: {
     // defines the logic on how to resolve the previous tag, only relevant if `fromTag` is not specified
     method: 'semver' // defines which method to use, by default it will use `semver` (dropping all non matching tags). Alternative `sort` is also available.
-  }
+  },
+  use_metadata_hash: false
 }

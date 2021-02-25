@@ -125,6 +125,10 @@ export class ReleaseNotes {
 
     // create array of commits for this release
     const releaseCommitHashes = prCommits.map(commmit => {
+      if (configuration.use_metadata_hash) {
+        return this.generateMetadataHash(commmit)
+      }
+
       return commmit.sha
     })
 
@@ -133,6 +137,16 @@ export class ReleaseNotes {
       return releaseCommitHashes.includes(pr.mergeCommitSha)
     })
   }
+
+  private async generateMetadataHash(commitInfo: CommitInfo) : Promise<string> {
+    var input = commitInfo.author.concat(commitInfo.message).concat(commitInfo.date)
+    
+    var crypto = require('crypto')
+    return crypto.createHash('sha256')
+                 .update(input)
+                 .digest('hex')
+  }
+
 
   private async generateCommitPRs(
     octokit: Octokit
