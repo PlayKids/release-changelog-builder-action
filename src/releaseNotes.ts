@@ -134,19 +134,34 @@ export class ReleaseNotes {
 
     // return only the pull requests associated with this release
     return pullRequests.filter(pr => {
+      if (configuration.use_metadata_hash) {
+        var commit = this.createCommitInfo(pr)
+        return releaseCommitHashes.includes(this.generateMetadataHash(commit))  
+      }
+
       return releaseCommitHashes.includes(pr.mergeCommitSha)
     })
   }
 
+  private createCommitInfo(pr: PullRequestInfo) : CommitInfo {
+    return ({
+      sha: pr.mergeCommitSha,
+      summary: pr.mergeCommitSummary,
+      message: pr.mergeCommitMessage,
+      author: pr.mergeCommitAuthor,
+      date: pr.mergeCommitDate
+    })
+  }
+
   private async generateMetadataHash(commitInfo: CommitInfo) : Promise<string> {
-    var input = commitInfo.author.concat(commitInfo.message).concat(commitInfo.date)
+    var input = commitInfo.author.concat(commitInfo.message)
+                                 .concat(commitInfo.date.unix().toString())
     
     var crypto = require('crypto')
     return crypto.createHash('sha256')
                  .update(input)
                  .digest('hex')
   }
-
 
   private async generateCommitPRs(
     octokit: Octokit
@@ -163,6 +178,10 @@ export class ReleaseNotes {
         htmlURL: '',
         mergedAt: commit.date,
         mergeCommitSha: '',
+        mergeCommitAuthor: '',
+        mergeCommitMessage: '',
+        mergeCommitDate: commit.date,
+        mergeCommitSummary: '',
         author: commit.author || '',
         repoName: '',
         labels: [],

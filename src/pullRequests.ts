@@ -10,6 +10,10 @@ export interface PullRequestInfo {
   htmlURL: string
   mergedAt: moment.Moment
   mergeCommitSha: string
+  mergeCommitAuthor: string
+  mergeCommitMessage: string
+  mergeCommitDate: moment.Moment
+  mergeCommitSummary: string
   author: string
   repoName: string
   labels: string[]
@@ -34,12 +38,25 @@ export class PullRequests {
         pull_number: prNumber
       })
 
+      var commit: any
+      if (pr.data.merge_commit_sha) {
+        commit = await this.octokit.repos.getCommit({
+          owner,
+          repo,
+          ref: pr.data.merge_commit_sha
+        })
+      }
+      
       return {
         number: pr.data.number,
         title: pr.data.title,
         htmlURL: pr.data.html_url,
         mergedAt: moment(pr.data.merged_at),
         mergeCommitSha: pr.data.merge_commit_sha || '',
+        mergeCommitAuthor: commit.data.commit.author?.name || '',
+        mergeCommitMessage: commit.data.commit.message,
+        mergeCommitDate: moment(commit.data.commit.author?.date || ''),
+        mergeCommitSummary: commit.data.commit.message.split('\n')[0],
         author: pr.data.user?.login || '',
         repoName: pr.data.base.repo.full_name,
         labels:
@@ -87,12 +104,26 @@ export class PullRequests {
       const prs: PullsListData = response.data as PullsListData
 
       for (const pr of prs.filter(p => !!p.merged_at)) {
+
+        var commit: any
+        if (pr.merge_commit_sha) {
+          commit = await this.octokit.repos.getCommit({
+            owner,
+            repo,
+            ref: pr.merge_commit_sha
+          })
+        }
+
         mergedPRs.push({
           number: pr.number,
           title: pr.title,
           htmlURL: pr.html_url,
           mergedAt: moment(pr.merged_at),
           mergeCommitSha: pr.merge_commit_sha || '',
+          mergeCommitAuthor: commit.data.commit.author?.name || '',
+          mergeCommitMessage: commit.data.commit.message,
+          mergeCommitDate: moment(commit.data.commit.author?.date || ''),
+          mergeCommitSummary: commit.data.commit.message.split('\n')[0],
           author: pr.user?.login || '',
           repoName: pr.base.repo.full_name,
           labels:
