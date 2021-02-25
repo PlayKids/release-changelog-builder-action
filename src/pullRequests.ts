@@ -38,25 +38,38 @@ export class PullRequests {
         pull_number: prNumber
       })
 
-      var commit: any
+      let commit: RestEndpointMethodTypes['repos']['getCommit']['response']
+      let commitAuthorName: string
+      let commitMessage: string
+      let commitDate: moment.Moment
+
       if (pr.data.merge_commit_sha) {
         commit = await this.octokit.repos.getCommit({
           owner,
           repo,
           ref: pr.data.merge_commit_sha
         })
+        commitAuthorName = commit.data.commit.author?.name || ''
+        commitMessage = commit.data.commit.message
+        commitDate = moment(
+          commit.data.commit.author?.date || pr.data.merged_at
+        )
+      } else {
+        commitAuthorName = ''
+        commitMessage = ''
+        commitDate = moment(pr.data.merged_at)
       }
-      
+
       return {
         number: pr.data.number,
         title: pr.data.title,
         htmlURL: pr.data.html_url,
         mergedAt: moment(pr.data.merged_at),
         mergeCommitSha: pr.data.merge_commit_sha || '',
-        mergeCommitAuthor: commit.data.commit.author?.name || '',
-        mergeCommitMessage: commit.data.commit.message,
-        mergeCommitDate: moment(commit.data.commit.author?.date || ''),
-        mergeCommitSummary: commit.data.commit.message.split('\n')[0],
+        mergeCommitAuthor: commitAuthorName,
+        mergeCommitMessage: commitMessage,
+        mergeCommitDate: commitDate,
+        mergeCommitSummary: commitMessage.split('\n')[0],
         author: pr.data.user?.login || '',
         repoName: pr.data.base.repo.full_name,
         labels:
@@ -104,14 +117,32 @@ export class PullRequests {
       const prs: PullsListData = response.data as PullsListData
 
       for (const pr of prs.filter(p => !!p.merged_at)) {
+        // let commit: any
+        // if (pr.merge_commit_sha) {
+        //   commit = await this.octokit.repos.getCommit({
+        //     owner,
+        //     repo,
+        //     ref: pr.merge_commit_sha
+        //   })
+        // }
+        let commit: RestEndpointMethodTypes['repos']['getCommit']['response']
+        let commitAuthorName: string
+        let commitMessage: string
+        let commitDate: moment.Moment
 
-        var commit: any
         if (pr.merge_commit_sha) {
           commit = await this.octokit.repos.getCommit({
             owner,
             repo,
             ref: pr.merge_commit_sha
           })
+          commitAuthorName = commit.data.commit.author?.name || ''
+          commitMessage = commit.data.commit.message
+          commitDate = moment(commit.data.commit.author?.date || pr.merged_at)
+        } else {
+          commitAuthorName = ''
+          commitMessage = ''
+          commitDate = moment(pr.merged_at)
         }
 
         mergedPRs.push({
@@ -120,10 +151,10 @@ export class PullRequests {
           htmlURL: pr.html_url,
           mergedAt: moment(pr.merged_at),
           mergeCommitSha: pr.merge_commit_sha || '',
-          mergeCommitAuthor: commit.data.commit.author?.name || '',
-          mergeCommitMessage: commit.data.commit.message,
-          mergeCommitDate: moment(commit.data.commit.author?.date || ''),
-          mergeCommitSummary: commit.data.commit.message.split('\n')[0],
+          mergeCommitAuthor: commitAuthorName,
+          mergeCommitMessage: commitMessage,
+          mergeCommitDate: commitDate,
+          mergeCommitSummary: commitMessage.split('\n')[0],
           author: pr.user?.login || '',
           repoName: pr.base.repo.full_name,
           labels:

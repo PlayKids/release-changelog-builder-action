@@ -5,6 +5,7 @@ import {buildChangelog} from './transform'
 import * as core from '@actions/core'
 import {Configuration, DefaultConfiguration} from './configuration'
 import {failOrError} from './utils'
+import * as crypto from 'crypto'
 
 export interface ReleaseNotesOptions {
   owner: string // the owner of the repository
@@ -122,13 +123,23 @@ export class ReleaseNotes {
     core.info(
       `ℹ️ Retrieved ${prCommits.length} LEO release commits for ${owner}/${repo}`
     )
-    
-    core.info(`configuration.use_metadata_hash: ${configuration.use_metadata_hash}`)
+
+    core.info(
+      `configuration.use_metadata_hash: ${configuration.use_metadata_hash}`
+    )
 
     // create array of commits for this release
     const releaseCommitHashes = prCommits.map(commmit => {
       if (configuration.use_metadata_hash) {
-        core.info(`Generating commit info from commit. commmit.sha: ${commmit.sha} | commmit.summary: ${commmit.summary} | commmit.message: ${commmit.message} | commmit.author: ${commmit.author} | commmit.date: ${commmit.date.unix().toString()}`)
+        core.info(
+          `Generating commit info from commit. commmit.sha: ${
+            commmit.sha
+          } | commmit.summary: ${commmit.summary} | commmit.message: ${
+            commmit.message
+          } | commmit.author: ${
+            commmit.author
+          } | commmit.date: ${commmit.date.unix().toString()}`
+        )
         return this.generateMetadataHash(commmit)
       }
 
@@ -138,34 +149,42 @@ export class ReleaseNotes {
     // return only the pull requests associated with this release
     return pullRequests.filter(pr => {
       if (configuration.use_metadata_hash) {
-        var commit = this.createCommitInfo(pr)
-        return releaseCommitHashes.includes(this.generateMetadataHash(commit))  
+        const commit = this.createCommitInfo(pr)
+        return releaseCommitHashes.includes(this.generateMetadataHash(commit))
       }
 
       return releaseCommitHashes.includes(pr.mergeCommitSha)
     })
   }
 
-  private createCommitInfo(pr: PullRequestInfo) : CommitInfo {
-    core.info(`Generating commit info from pr. pr.mergeCommitSha: ${pr.mergeCommitSha} | pr.mergeCommitSummary: ${pr.mergeCommitSummary} | pr.mergeCommitMessage: ${pr.mergeCommitMessage} | pr.mergeCommitAuthor: ${pr.mergeCommitAuthor} | pr.mergeCommitDate: ${pr.mergeCommitDate.unix().toString()}`)
+  private createCommitInfo(pr: PullRequestInfo): CommitInfo {
+    core.info(
+      `Generating commit info from pr. pr.mergeCommitSha: ${
+        pr.mergeCommitSha
+      } | pr.mergeCommitSummary: ${
+        pr.mergeCommitSummary
+      } | pr.mergeCommitMessage: ${
+        pr.mergeCommitMessage
+      } | pr.mergeCommitAuthor: ${
+        pr.mergeCommitAuthor
+      } | pr.mergeCommitDate: ${pr.mergeCommitDate.unix().toString()}`
+    )
 
-    return ({
+    return {
       sha: pr.mergeCommitSha,
       summary: pr.mergeCommitSummary,
       message: pr.mergeCommitMessage,
       author: pr.mergeCommitAuthor,
       date: pr.mergeCommitDate
-    })
+    }
   }
 
-  private async generateMetadataHash(commitInfo: CommitInfo) : Promise<string> {
-    var input = commitInfo.author.concat(commitInfo.message)
-                                 .concat(commitInfo.date.unix().toString())
-    
-    var crypto = require('crypto')
-    return crypto.createHash('sha256')
-                 .update(input)
-                 .digest('hex')
+  private async generateMetadataHash(commitInfo: CommitInfo): Promise<string> {
+    const input = commitInfo.author
+      .concat(commitInfo.message)
+      .concat(commitInfo.date.unix().toString())
+
+    return crypto.createHash('sha256').update(input).digest('hex')
   }
 
   private async generateCommitPRs(

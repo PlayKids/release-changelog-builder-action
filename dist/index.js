@@ -151,7 +151,8 @@ exports.DefaultConfiguration = {
     tag_resolver: {
         // defines the logic on how to resolve the previous tag, only relevant if `fromTag` is not specified
         method: 'semver' // defines which method to use, by default it will use `semver` (dropping all non matching tags). Alternative `sort` is also available.
-    }
+    },
+    use_metadata_hash: false
 };
 
 
@@ -402,7 +403,7 @@ class PullRequests {
         this.octokit = octokit;
     }
     getSingle(owner, repo, prNumber) {
-        var _a, _b, _c, _d, _e;
+        var _a, _b, _c, _d, _e, _f, _g;
         return __awaiter(this, void 0, void 0, function* () {
             try {
                 const pr = yield this.octokit.pulls.get({
@@ -410,23 +411,46 @@ class PullRequests {
                     repo,
                     pull_number: prNumber
                 });
+                let commit;
+                let commitAuthorName;
+                let commitMessage;
+                let commitDate;
+                if (pr.data.merge_commit_sha) {
+                    commit = yield this.octokit.repos.getCommit({
+                        owner,
+                        repo,
+                        ref: pr.data.merge_commit_sha
+                    });
+                    commitAuthorName = ((_a = commit.data.commit.author) === null || _a === void 0 ? void 0 : _a.name) || '';
+                    commitMessage = commit.data.commit.message;
+                    commitDate = moment_1.default(((_b = commit.data.commit.author) === null || _b === void 0 ? void 0 : _b.date) || pr.data.merged_at);
+                }
+                else {
+                    commitAuthorName = '';
+                    commitMessage = '';
+                    commitDate = moment_1.default(pr.data.merged_at);
+                }
                 return {
                     number: pr.data.number,
                     title: pr.data.title,
                     htmlURL: pr.data.html_url,
                     mergedAt: moment_1.default(pr.data.merged_at),
                     mergeCommitSha: pr.data.merge_commit_sha || '',
-                    author: ((_a = pr.data.user) === null || _a === void 0 ? void 0 : _a.login) || '',
+                    mergeCommitAuthor: commitAuthorName,
+                    mergeCommitMessage: commitMessage,
+                    mergeCommitDate: commitDate,
+                    mergeCommitSummary: commitMessage.split('\n')[0],
+                    author: ((_c = pr.data.user) === null || _c === void 0 ? void 0 : _c.login) || '',
                     repoName: pr.data.base.repo.full_name,
-                    labels: ((_b = pr.data.labels) === null || _b === void 0 ? void 0 : _b.map(function (label) {
+                    labels: ((_d = pr.data.labels) === null || _d === void 0 ? void 0 : _d.map(function (label) {
                         return label.name || '';
                     })) || [],
-                    milestone: ((_c = pr.data.milestone) === null || _c === void 0 ? void 0 : _c.title) || '',
+                    milestone: ((_e = pr.data.milestone) === null || _e === void 0 ? void 0 : _e.title) || '',
                     body: pr.data.body || '',
-                    assignees: ((_d = pr.data.assignees) === null || _d === void 0 ? void 0 : _d.map(function (asignee) {
+                    assignees: ((_f = pr.data.assignees) === null || _f === void 0 ? void 0 : _f.map(function (asignee) {
                         return (asignee === null || asignee === void 0 ? void 0 : asignee.login) || '';
                     })) || [],
-                    requestedReviewers: ((_e = pr.data.requested_reviewers) === null || _e === void 0 ? void 0 : _e.map(function (reviewer) {
+                    requestedReviewers: ((_g = pr.data.requested_reviewers) === null || _g === void 0 ? void 0 : _g.map(function (reviewer) {
                         return (reviewer === null || reviewer === void 0 ? void 0 : reviewer.login) || '';
                     })) || []
                 };
@@ -439,7 +463,7 @@ class PullRequests {
     }
     getBetweenDates(owner, repo, fromDate, toDate, maxPullRequests) {
         var e_1, _a;
-        var _b, _c, _d, _e, _f;
+        var _b, _c, _d, _e, _f, _g, _h;
         return __awaiter(this, void 0, void 0, function* () {
             const mergedPRs = [];
             const options = this.octokit.pulls.list.endpoint.merge({
@@ -451,27 +475,58 @@ class PullRequests {
                 direction: 'desc'
             });
             try {
-                for (var _g = __asyncValues(this.octokit.paginate.iterator(options)), _h; _h = yield _g.next(), !_h.done;) {
-                    const response = _h.value;
+                for (var _j = __asyncValues(this.octokit.paginate.iterator(options)), _k; _k = yield _j.next(), !_k.done;) {
+                    const response = _k.value;
                     const prs = response.data;
                     for (const pr of prs.filter(p => !!p.merged_at)) {
+                        // let commit: any
+                        // if (pr.merge_commit_sha) {
+                        //   commit = await this.octokit.repos.getCommit({
+                        //     owner,
+                        //     repo,
+                        //     ref: pr.merge_commit_sha
+                        //   })
+                        // }
+                        let commit;
+                        let commitAuthorName;
+                        let commitMessage;
+                        let commitDate;
+                        if (pr.merge_commit_sha) {
+                            commit = yield this.octokit.repos.getCommit({
+                                owner,
+                                repo,
+                                ref: pr.merge_commit_sha
+                            });
+                            commitAuthorName = ((_b = commit.data.commit.author) === null || _b === void 0 ? void 0 : _b.name) || '';
+                            commitMessage = commit.data.commit.message;
+                            commitDate = moment_1.default(((_c = commit.data.commit.author) === null || _c === void 0 ? void 0 : _c.date) || pr.merged_at);
+                        }
+                        else {
+                            commitAuthorName = '';
+                            commitMessage = '';
+                            commitDate = moment_1.default(pr.merged_at);
+                        }
                         mergedPRs.push({
                             number: pr.number,
                             title: pr.title,
                             htmlURL: pr.html_url,
                             mergedAt: moment_1.default(pr.merged_at),
                             mergeCommitSha: pr.merge_commit_sha || '',
-                            author: ((_b = pr.user) === null || _b === void 0 ? void 0 : _b.login) || '',
+                            mergeCommitAuthor: commitAuthorName,
+                            mergeCommitMessage: commitMessage,
+                            mergeCommitDate: commitDate,
+                            mergeCommitSummary: commitMessage.split('\n')[0],
+                            author: ((_d = pr.user) === null || _d === void 0 ? void 0 : _d.login) || '',
                             repoName: pr.base.repo.full_name,
-                            labels: ((_c = pr.labels) === null || _c === void 0 ? void 0 : _c.map(function (label) {
+                            labels: ((_e = pr.labels) === null || _e === void 0 ? void 0 : _e.map(function (label) {
                                 return label.name || '';
                             })) || [],
-                            milestone: ((_d = pr.milestone) === null || _d === void 0 ? void 0 : _d.title) || '',
+                            milestone: ((_f = pr.milestone) === null || _f === void 0 ? void 0 : _f.title) || '',
                             body: pr.body || '',
-                            assignees: ((_e = pr.assignees) === null || _e === void 0 ? void 0 : _e.map(function (asignee) {
+                            assignees: ((_g = pr.assignees) === null || _g === void 0 ? void 0 : _g.map(function (asignee) {
                                 return (asignee === null || asignee === void 0 ? void 0 : asignee.login) || '';
                             })) || [],
-                            requestedReviewers: ((_f = pr.requested_reviewers) === null || _f === void 0 ? void 0 : _f.map(function (reviewer) {
+                            requestedReviewers: ((_h = pr.requested_reviewers) === null || _h === void 0 ? void 0 : _h.map(function (reviewer) {
                                 return (reviewer === null || reviewer === void 0 ? void 0 : reviewer.login) || '';
                             })) || []
                         });
@@ -491,7 +546,7 @@ class PullRequests {
             catch (e_1_1) { e_1 = { error: e_1_1 }; }
             finally {
                 try {
-                    if (_h && !_h.done && (_a = _g.return)) yield _a.call(_g);
+                    if (_k && !_k.done && (_a = _j.return)) yield _a.call(_j);
                 }
                 finally { if (e_1) throw e_1.error; }
             }
@@ -593,6 +648,7 @@ const transform_1 = __nccwpck_require__(1644);
 const core = __importStar(__nccwpck_require__(2186));
 const configuration_1 = __nccwpck_require__(5527);
 const utils_1 = __nccwpck_require__(918);
+const crypto = __importStar(__nccwpck_require__(3373));
 class ReleaseNotes {
     constructor(octokit, options) {
         this.octokit = octokit;
@@ -667,15 +723,42 @@ class ReleaseNotes {
             core.info(`ℹ️ Retrieved ${pullRequests.length} merged PRs for ${owner}/${repo}`);
             const prCommits = pullRequestsApi.filterCommits(commits, configuration.exclude_merge_branches ||
                 configuration_1.DefaultConfiguration.exclude_merge_branches);
-            core.info(`ℹ️ Retrieved ${prCommits.length} release commits for ${owner}/${repo}`);
+            core.info(`ℹ️ Retrieved ${prCommits.length} LEO release commits for ${owner}/${repo}`);
+            core.info(`configuration.use_metadata_hash: ${configuration.use_metadata_hash}`);
             // create array of commits for this release
             const releaseCommitHashes = prCommits.map(commmit => {
+                if (configuration.use_metadata_hash) {
+                    core.info(`Generating commit info from commit. commmit.sha: ${commmit.sha} | commmit.summary: ${commmit.summary} | commmit.message: ${commmit.message} | commmit.author: ${commmit.author} | commmit.date: ${commmit.date.unix().toString()}`);
+                    return this.generateMetadataHash(commmit);
+                }
                 return commmit.sha;
             });
             // return only the pull requests associated with this release
             return pullRequests.filter(pr => {
+                if (configuration.use_metadata_hash) {
+                    const commit = this.createCommitInfo(pr);
+                    return releaseCommitHashes.includes(this.generateMetadataHash(commit));
+                }
                 return releaseCommitHashes.includes(pr.mergeCommitSha);
             });
+        });
+    }
+    createCommitInfo(pr) {
+        core.info(`Generating commit info from pr. pr.mergeCommitSha: ${pr.mergeCommitSha} | pr.mergeCommitSummary: ${pr.mergeCommitSummary} | pr.mergeCommitMessage: ${pr.mergeCommitMessage} | pr.mergeCommitAuthor: ${pr.mergeCommitAuthor} | pr.mergeCommitDate: ${pr.mergeCommitDate.unix().toString()}`);
+        return {
+            sha: pr.mergeCommitSha,
+            summary: pr.mergeCommitSummary,
+            message: pr.mergeCommitMessage,
+            author: pr.mergeCommitAuthor,
+            date: pr.mergeCommitDate
+        };
+    }
+    generateMetadataHash(commitInfo) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const input = commitInfo.author
+                .concat(commitInfo.message)
+                .concat(commitInfo.date.unix().toString());
+            return crypto.createHash('sha256').update(input).digest('hex');
         });
     }
     generateCommitPRs(octokit) {
@@ -691,6 +774,10 @@ class ReleaseNotes {
                     htmlURL: '',
                     mergedAt: commit.date,
                     mergeCommitSha: '',
+                    mergeCommitAuthor: '',
+                    mergeCommitMessage: '',
+                    mergeCommitDate: commit.date,
+                    mergeCommitSummary: '',
                     author: commit.author || '',
                     repoName: '',
                     labels: [],
@@ -1070,7 +1157,7 @@ function buildChangelog(prs, config, options) {
         if (extractor.pattern != null) {
             for (const pr of prs) {
                 const label = pr.body.replace(extractor.pattern, extractor.target);
-                if (label !== "") {
+                if (label !== '') {
                     pr.labels.push(label);
                 }
             }
@@ -5740,7 +5827,7 @@ const Endpoints = {
   }
 };
 
-const VERSION = "4.12.0";
+const VERSION = "4.12.2";
 
 function endpointsToMethods(octokit, endpointsMap) {
   const newMethods = {};
@@ -6066,7 +6153,7 @@ var pluginRequestLog = __nccwpck_require__(8883);
 var pluginPaginateRest = __nccwpck_require__(4193);
 var pluginRestEndpointMethods = __nccwpck_require__(3044);
 
-const VERSION = "18.2.0";
+const VERSION = "18.2.1";
 
 const Octokit = core.Octokit.plugin(pluginRequestLog.requestLog, pluginRestEndpointMethods.restEndpointMethods, pluginPaginateRest.paginateRest).defaults({
   userAgent: `octokit-rest.js/${VERSION}`
@@ -17079,6 +17166,14 @@ module.exports = require("assert");;
 
 "use strict";
 module.exports = require("child_process");;
+
+/***/ }),
+
+/***/ 3373:
+/***/ ((module) => {
+
+"use strict";
+module.exports = require("crypto");;
 
 /***/ }),
 
