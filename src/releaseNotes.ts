@@ -120,7 +120,7 @@ export class ReleaseNotes {
     )
 
     core.info(
-      `ℹ️ Retrieved ${prCommits.length} release commits for ${owner}/${repo}`
+      `ℹ️ Retrieved ${prCommits.length} LEO release commits for ${owner}/${repo}`
     )
     
     core.info(`configuration.use_metadata_hash: ${configuration.use_metadata_hash}`)
