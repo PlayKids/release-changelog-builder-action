@@ -411,17 +411,17 @@ class PullRequests {
                     repo,
                     pull_number: prNumber
                 });
-                const commitsList = yield this.getListOfCommits(owner, repo, prNumber, 1);
+                const commitsList = yield this.getLastCommit(owner, repo, prNumber, 1);
                 return {
                     number: pr.data.number,
                     title: pr.data.title,
                     htmlURL: pr.data.html_url,
                     mergedAt: moment_1.default(pr.data.merged_at),
                     mergeCommitSha: pr.data.merge_commit_sha || '',
-                    mergeCommitAuthor: (commitsList === null || commitsList === void 0 ? void 0 : commitsList.mergeCommitAuthor) || '',
-                    mergeCommitMessage: (commitsList === null || commitsList === void 0 ? void 0 : commitsList.mergeCommitMessage) || '',
-                    mergeCommitDate: moment_1.default(commitsList === null || commitsList === void 0 ? void 0 : commitsList.mergeCommitDate) || pr.data.merged_at,
-                    mergeCommitSummary: (commitsList === null || commitsList === void 0 ? void 0 : commitsList.mergeCommitMessage.split('\n')[0]) || '',
+                    mergeCommitAuthor: (commitsList === null || commitsList === void 0 ? void 0 : commitsList.author) || '',
+                    mergeCommitMessage: (commitsList === null || commitsList === void 0 ? void 0 : commitsList.message) || '',
+                    mergeCommitDate: moment_1.default(commitsList === null || commitsList === void 0 ? void 0 : commitsList.date) || pr.data.merged_at,
+                    mergeCommitSummary: (commitsList === null || commitsList === void 0 ? void 0 : commitsList.message.split('\n')[0]) || '',
                     author: ((_a = pr.data.user) === null || _a === void 0 ? void 0 : _a.login) || '',
                     repoName: pr.data.base.repo.full_name,
                     labels: ((_b = pr.data.labels) === null || _b === void 0 ? void 0 : _b.map(function (label) {
@@ -443,7 +443,7 @@ class PullRequests {
             }
         });
     }
-    getListOfCommits(owner, repo, prNumber, perPage) {
+    getLastCommit(owner, repo, prNumber, perPage) {
         var _a, _b;
         return __awaiter(this, void 0, void 0, function* () {
             try {
@@ -455,10 +455,11 @@ class PullRequests {
                 });
                 const commitMessage = commitsList.data[0].commit.message;
                 return {
-                    mergeCommitAuthor: ((_a = commitsList.data[0].commit.author) === null || _a === void 0 ? void 0 : _a.name) || '',
-                    mergeCommitMessage: commitMessage,
-                    mergeCommitDate: moment_1.default((_b = commitsList.data[0].commit.author) === null || _b === void 0 ? void 0 : _b.date) || '',
-                    mergeCommitSummary: commitMessage.split('\n')[0]
+                    author: ((_a = commitsList.data[0].commit.author) === null || _a === void 0 ? void 0 : _a.name) || '',
+                    message: commitMessage,
+                    date: moment_1.default((_b = commitsList.data[0].commit.author) === null || _b === void 0 ? void 0 : _b.date) || '',
+                    summary: commitMessage.split('\n')[0],
+                    sha: commitsList.data[0].sha
                 };
             }
             catch (e) {
@@ -485,17 +486,17 @@ class PullRequests {
                     const response = _h.value;
                     const prs = response.data;
                     for (const pr of prs.filter(p => !!p.merged_at)) {
-                        const commitsList = yield this.getListOfCommits(owner, repo, pr.number, 1);
+                        const commitsList = yield this.getLastCommit(owner, repo, pr.number, 1);
                         mergedPRs.push({
                             number: pr.number,
                             title: pr.title,
                             htmlURL: pr.html_url,
                             mergedAt: moment_1.default(pr.merged_at),
                             mergeCommitSha: pr.merge_commit_sha || '',
-                            mergeCommitAuthor: (commitsList === null || commitsList === void 0 ? void 0 : commitsList.mergeCommitAuthor) || '',
-                            mergeCommitMessage: (commitsList === null || commitsList === void 0 ? void 0 : commitsList.mergeCommitMessage) || '',
-                            mergeCommitDate: moment_1.default(commitsList === null || commitsList === void 0 ? void 0 : commitsList.mergeCommitDate) || pr.merged_at,
-                            mergeCommitSummary: (commitsList === null || commitsList === void 0 ? void 0 : commitsList.mergeCommitMessage.split('\n')[0]) || '',
+                            mergeCommitAuthor: (commitsList === null || commitsList === void 0 ? void 0 : commitsList.author) || '',
+                            mergeCommitMessage: (commitsList === null || commitsList === void 0 ? void 0 : commitsList.message) || '',
+                            mergeCommitDate: moment_1.default(commitsList === null || commitsList === void 0 ? void 0 : commitsList.date) || pr.merged_at,
+                            mergeCommitSummary: (commitsList === null || commitsList === void 0 ? void 0 : commitsList.message.split('\n')[0]) || '',
                             author: ((_b = pr.user) === null || _b === void 0 ? void 0 : _b.login) || '',
                             repoName: pr.base.repo.full_name,
                             labels: ((_c = pr.labels) === null || _c === void 0 ? void 0 : _c.map(function (label) {
@@ -704,12 +705,13 @@ class ReleaseNotes {
             const prCommits = pullRequestsApi.filterCommits(commits, configuration.exclude_merge_branches ||
                 configuration_1.DefaultConfiguration.exclude_merge_branches);
             core.info(`ℹ️ Retrieved ${prCommits.length} release commits for ${owner}/${repo}`);
-            core.info(`configuration.use_metadata_hash: ${configuration.use_metadata_hash}`);
+            if (configuration.use_metadata_hash) {
+                core.info(`Metadata hash configuration is enabled. Using metadata hash to compare values`);
+            }
             // create array of commits for this release
             const releaseCommitHashes = prCommits.map(commmit => {
                 if (configuration.use_metadata_hash) {
-                    const metadataHash = this.generateMetadataHash(commmit);
-                    return metadataHash;
+                    return this.generateMetadataHash(commmit);
                 }
                 return commmit.sha;
             });
@@ -717,8 +719,8 @@ class ReleaseNotes {
             return pullRequests.filter(pr => {
                 if (configuration.use_metadata_hash) {
                     const commit = this.createCommitInfo(pr);
-                    const metadataHash2 = this.generateMetadataHash(commit);
-                    return releaseCommitHashes.includes(metadataHash2);
+                    const metadataHash = this.generateMetadataHash(commit);
+                    return releaseCommitHashes.includes(metadataHash);
                 }
                 return releaseCommitHashes.includes(pr.mergeCommitSha);
             });

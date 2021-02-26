@@ -38,7 +38,7 @@ export const DefaultConfiguration: Configuration = {
   template: '${{CHANGELOG}}', // the global template to host the changelog
   pr_template: '- ${{TITLE}}\n   - PR: #${{NUMBER}}', // the per PR template to pick
   empty_template: '- no changes', // the template to use if no pull requests are found
-  use_metadata_hash: false, // enable this when you are using subtree in your project, since the pr and commits hashes differ. It will create a new metadata hash (author+message+date) that will be used when comparing the hashes of commits.
+  use_metadata_hash: false, // enable this when you are using subtree in your project, since the pr and commits hashes differ. This will create a new metadata hash (author+message+date) that will be used when comparing the hashes of commits.
   categories: [
     {
       title: '## 🚀 Features',

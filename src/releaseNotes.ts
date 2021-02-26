@@ -124,15 +124,16 @@ export class ReleaseNotes {
       `ℹ️ Retrieved ${prCommits.length} release commits for ${owner}/${repo}`
     )
 
-    core.info(
-      `configuration.use_metadata_hash: ${configuration.use_metadata_hash}`
-    )
+    if (configuration.use_metadata_hash) {
+      core.info(
+        `Metadata hash configuration is enabled. Using metadata hash to compare values`
+      )
+    }
 
     // create array of commits for this release
     const releaseCommitHashes = prCommits.map(commmit => {
       if (configuration.use_metadata_hash) {
-        const metadataHash = this.generateMetadataHash(commmit)
-        return metadataHash
+        return this.generateMetadataHash(commmit)
       }
 
       return commmit.sha
@@ -142,8 +143,8 @@ export class ReleaseNotes {
     return pullRequests.filter(pr => {
       if (configuration.use_metadata_hash) {
         const commit = this.createCommitInfo(pr)
-        const metadataHash2 = this.generateMetadataHash(commit)
-        return releaseCommitHashes.includes(metadataHash2)
+        const metadataHash = this.generateMetadataHash(commit)
+        return releaseCommitHashes.includes(metadataHash)
       }
 
       return releaseCommitHashes.includes(pr.mergeCommitSha)

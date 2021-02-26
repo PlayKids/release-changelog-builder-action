@@ -1,7 +1,7 @@
 import {Octokit, RestEndpointMethodTypes} from '@octokit/rest'
 import moment from 'moment'
 
-import {CommitInfo, MergeCommitInfo} from './commits'
+import {CommitInfo} from './commits'
 import * as core from '@actions/core'
 
 export interface PullRequestInfo {
@@ -37,7 +37,7 @@ export class PullRequests {
         repo,
         pull_number: prNumber
       })
-      const commitsList = await this.getListOfCommits(owner, repo, prNumber, 1)
+      const commitsList = await this.getLastCommit(owner, repo, prNumber, 1)
 
       return {
         number: pr.data.number,
@@ -45,12 +45,10 @@ export class PullRequests {
         htmlURL: pr.data.html_url,
         mergedAt: moment(pr.data.merged_at),
         mergeCommitSha: pr.data.merge_commit_sha || '',
-        mergeCommitAuthor: commitsList?.mergeCommitAuthor || '',
-        mergeCommitMessage: commitsList?.mergeCommitMessage || '',
-        mergeCommitDate:
-          moment(commitsList?.mergeCommitDate) || pr.data.merged_at,
-        mergeCommitSummary:
-          commitsList?.mergeCommitMessage.split('\n')[0] || '',
+        mergeCommitAuthor: commitsList?.author || '',
+        mergeCommitMessage: commitsList?.message || '',
+        mergeCommitDate: moment(commitsList?.date) || pr.data.merged_at,
+        mergeCommitSummary: commitsList?.message.split('\n')[0] || '',
         author: pr.data.user?.login || '',
         repoName: pr.data.base.repo.full_name,
         labels:
@@ -76,12 +74,12 @@ export class PullRequests {
     }
   }
 
-  async getListOfCommits(
+  async getLastCommit(
     owner: string,
     repo: string,
     prNumber: number,
     perPage: number
-  ): Promise<MergeCommitInfo | null> {
+  ): Promise<CommitInfo | null> {
     try {
       const commitsList = await this.octokit.pulls.listCommits({
         owner,
@@ -92,10 +90,11 @@ export class PullRequests {
       const commitMessage = commitsList.data[0].commit.message
 
       return {
-        mergeCommitAuthor: commitsList.data[0].commit.author?.name || '',
-        mergeCommitMessage: commitMessage,
-        mergeCommitDate: moment(commitsList.data[0].commit.author?.date) || '',
-        mergeCommitSummary: commitMessage.split('\n')[0]
+        author: commitsList.data[0].commit.author?.name || '',
+        message: commitMessage,
+        date: moment(commitsList.data[0].commit.author?.date) || '',
+        summary: commitMessage.split('\n')[0],
+        sha: commitsList.data[0].sha
       }
     } catch (e) {
       core.warning(
@@ -127,12 +126,7 @@ export class PullRequests {
       const prs: PullsListData = response.data as PullsListData
 
       for (const pr of prs.filter(p => !!p.merged_at)) {
-        const commitsList = await this.getListOfCommits(
-          owner,
-          repo,
-          pr.number,
-          1
-        )
+        const commitsList = await this.getLastCommit(owner, repo, pr.number, 1)
 
         mergedPRs.push({
           number: pr.number,
@@ -140,11 +134,10 @@ export class PullRequests {
           htmlURL: pr.html_url,
           mergedAt: moment(pr.merged_at),
           mergeCommitSha: pr.merge_commit_sha || '',
-          mergeCommitAuthor: commitsList?.mergeCommitAuthor || '',
-          mergeCommitMessage: commitsList?.mergeCommitMessage || '',
-          mergeCommitDate: moment(commitsList?.mergeCommitDate) || pr.merged_at,
-          mergeCommitSummary:
-            commitsList?.mergeCommitMessage.split('\n')[0] || '',
+          mergeCommitAuthor: commitsList?.author || '',
+          mergeCommitMessage: commitsList?.message || '',
+          mergeCommitDate: moment(commitsList?.date) || pr.merged_at,
+          mergeCommitSummary: commitsList?.message.split('\n')[0] || '',
           author: pr.user?.login || '',
           repoName: pr.base.repo.full_name,
           labels:

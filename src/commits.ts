@@ -10,13 +10,6 @@ export interface CommitInfo {
   date: moment.Moment
 }
 
-export interface MergeCommitInfo {
-  mergeCommitAuthor: string
-  mergeCommitMessage: string
-  mergeCommitDate: moment.Moment
-  mergeCommitSummary: string
-}
-
 export class Commits {
   constructor(private octokit: Octokit) {}
 
