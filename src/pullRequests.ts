@@ -38,27 +38,17 @@ export class PullRequests {
         pull_number: prNumber
       })
 
-      let commit: RestEndpointMethodTypes['repos']['getCommit']['response']
-      let commitAuthorName: string
-      let commitMessage: string
-      let commitDate: moment.Moment
-
-      if (pr.data.merge_commit_sha) {
-        commit = await this.octokit.repos.getCommit({
-          owner,
-          repo,
-          ref: pr.data.merge_commit_sha
-        })
-        commitAuthorName = commit.data.commit.author?.name || ''
-        commitMessage = commit.data.commit.message
-        commitDate = moment(
-          commit.data.commit.author?.date || pr.data.merged_at
-        )
-      } else {
-        commitAuthorName = ''
-        commitMessage = ''
-        commitDate = moment(pr.data.merged_at)
-      }
+      const commitsList = await this.octokit.pulls.listCommits({
+        owner,
+        repo,
+        pull_number: prNumber,
+        per_page: 2
+      })
+      const commitAuthorName = commitsList.data[0].commit.author?.name || ''
+      const commitMessage = commitsList.data[0].commit.message
+      const commitDate = moment(
+        commitsList.data[0].commit.author?.date || pr.data.merged_at
+      )
 
       return {
         number: pr.data.number,
@@ -117,33 +107,17 @@ export class PullRequests {
       const prs: PullsListData = response.data as PullsListData
 
       for (const pr of prs.filter(p => !!p.merged_at)) {
-        // let commit: any
-        // if (pr.merge_commit_sha) {
-        //   commit = await this.octokit.repos.getCommit({
-        //     owner,
-        //     repo,
-        //     ref: pr.merge_commit_sha
-        //   })
-        // }
-        let commit: RestEndpointMethodTypes['repos']['getCommit']['response']
-        let commitAuthorName: string
-        let commitMessage: string
-        let commitDate: moment.Moment
-
-        if (pr.merge_commit_sha) {
-          commit = await this.octokit.repos.getCommit({
-            owner,
-            repo,
-            ref: pr.merge_commit_sha
-          })
-          commitAuthorName = commit.data.commit.author?.name || ''
-          commitMessage = commit.data.commit.message
-          commitDate = moment(commit.data.commit.author?.date || pr.merged_at)
-        } else {
-          commitAuthorName = ''
-          commitMessage = ''
-          commitDate = moment(pr.merged_at)
-        }
+        const commitsList = await this.octokit.pulls.listCommits({
+          owner,
+          repo,
+          pull_number: pr.number,
+          per_page: 2
+        })
+        const commitAuthorName = commitsList.data[0].commit.author?.name || ''
+        const commitMessage = commitsList.data[0].commit.message
+        const commitDate = moment(
+          commitsList.data[0].commit.author?.date || pr.merged_at
+        )
 
         mergedPRs.push({
           number: pr.number,

@@ -411,25 +411,15 @@ class PullRequests {
                     repo,
                     pull_number: prNumber
                 });
-                let commit;
-                let commitAuthorName;
-                let commitMessage;
-                let commitDate;
-                if (pr.data.merge_commit_sha) {
-                    commit = yield this.octokit.repos.getCommit({
-                        owner,
-                        repo,
-                        ref: pr.data.merge_commit_sha
-                    });
-                    commitAuthorName = ((_a = commit.data.commit.author) === null || _a === void 0 ? void 0 : _a.name) || '';
-                    commitMessage = commit.data.commit.message;
-                    commitDate = moment_1.default(((_b = commit.data.commit.author) === null || _b === void 0 ? void 0 : _b.date) || pr.data.merged_at);
-                }
-                else {
-                    commitAuthorName = '';
-                    commitMessage = '';
-                    commitDate = moment_1.default(pr.data.merged_at);
-                }
+                const commitsList = yield this.octokit.pulls.listCommits({
+                    owner,
+                    repo,
+                    pull_number: prNumber,
+                    per_page: 2
+                });
+                const commitAuthorName = ((_a = commitsList.data[0].commit.author) === null || _a === void 0 ? void 0 : _a.name) || '';
+                const commitMessage = commitsList.data[0].commit.message;
+                const commitDate = moment_1.default(((_b = commitsList.data[0].commit.author) === null || _b === void 0 ? void 0 : _b.date) || pr.data.merged_at);
                 return {
                     number: pr.data.number,
                     title: pr.data.title,
@@ -479,33 +469,15 @@ class PullRequests {
                     const response = _k.value;
                     const prs = response.data;
                     for (const pr of prs.filter(p => !!p.merged_at)) {
-                        // let commit: any
-                        // if (pr.merge_commit_sha) {
-                        //   commit = await this.octokit.repos.getCommit({
-                        //     owner,
-                        //     repo,
-                        //     ref: pr.merge_commit_sha
-                        //   })
-                        // }
-                        let commit;
-                        let commitAuthorName;
-                        let commitMessage;
-                        let commitDate;
-                        if (pr.merge_commit_sha) {
-                            commit = yield this.octokit.repos.getCommit({
-                                owner,
-                                repo,
-                                ref: pr.merge_commit_sha
-                            });
-                            commitAuthorName = ((_b = commit.data.commit.author) === null || _b === void 0 ? void 0 : _b.name) || '';
-                            commitMessage = commit.data.commit.message;
-                            commitDate = moment_1.default(((_c = commit.data.commit.author) === null || _c === void 0 ? void 0 : _c.date) || pr.merged_at);
-                        }
-                        else {
-                            commitAuthorName = '';
-                            commitMessage = '';
-                            commitDate = moment_1.default(pr.merged_at);
-                        }
+                        const commitsList = yield this.octokit.pulls.listCommits({
+                            owner,
+                            repo,
+                            pull_number: pr.number,
+                            per_page: 2
+                        });
+                        const commitAuthorName = ((_b = commitsList.data[0].commit.author) === null || _b === void 0 ? void 0 : _b.name) || '';
+                        const commitMessage = commitsList.data[0].commit.message;
+                        const commitDate = moment_1.default(((_c = commitsList.data[0].commit.author) === null || _c === void 0 ? void 0 : _c.date) || pr.merged_at);
                         mergedPRs.push({
                             number: pr.number,
                             title: pr.title,
