@@ -132,6 +132,7 @@ export class ReleaseNotes {
     const releaseCommitHashes = prCommits.map(commmit => {
       if (configuration.use_metadata_hash) {
         const metadataHash = this.generateMetadataHash(commmit)
+
         core.info(
           `Generating commit info from commit.metadataHash: ${metadataHash} | commmit.sha: ${
             commmit.sha
@@ -182,7 +183,7 @@ export class ReleaseNotes {
     }
   }
 
-  private async generateMetadataHash(commitInfo: CommitInfo): Promise<string> {
+  private generateMetadataHash(commitInfo: CommitInfo): string {
     const input = commitInfo.author
       .concat(commitInfo.message)
       .concat(commitInfo.date.unix().toString())

@@ -728,12 +728,10 @@ class ReleaseNotes {
         };
     }
     generateMetadataHash(commitInfo) {
-        return __awaiter(this, void 0, void 0, function* () {
-            const input = commitInfo.author
-                .concat(commitInfo.message)
-                .concat(commitInfo.date.unix().toString());
-            return crypto.createHash('sha256').update(input).digest('hex');
-        });
+        const input = commitInfo.author
+            .concat(commitInfo.message)
+            .concat(commitInfo.date.unix().toString());
+        return crypto.createHash('sha256').update(input).digest('hex');
     }
     generateCommitPRs(octokit) {
         return __awaiter(this, void 0, void 0, function* () {
