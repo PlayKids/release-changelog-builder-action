@@ -133,7 +133,19 @@ export class ReleaseNotes {
     // create array of commits for this release
     const releaseCommitHashes = prCommits.map(commmit => {
       if (configuration.use_metadata_hash) {
-        return this.generateMetadataHash(commmit)
+        const metadataHash = this.generateMetadataHash(commmit)
+
+        core.info(
+          `Generating commit info from commit.metadataHash: ${metadataHash} | commmit.sha: ${
+            commmit.sha
+          } | commmit.summary: ${commmit.summary} | commmit.message: ${
+            commmit.message
+          } | commmit.author: ${
+            commmit.author
+          } | commmit.date: ${commmit.date.unix().toString()}`
+        )
+
+        return metadataHash
       }
 
       return commmit.sha
@@ -143,8 +155,20 @@ export class ReleaseNotes {
     return pullRequests.filter(pr => {
       if (configuration.use_metadata_hash) {
         const commit = this.createCommitInfo(pr)
-        const metadataHash = this.generateMetadataHash(commit)
-        return releaseCommitHashes.includes(metadataHash)
+        const metadataHash2 = this.generateMetadataHash(commit)
+        core.info(
+          `Generating commit info from pr. metadataHash2: ${metadataHash2} | pr.mergeCommitSha: ${
+            pr.mergeCommitSha
+          } | pr.mergeCommitSummary: ${
+            pr.mergeCommitSummary
+          } | pr.mergeCommitMessage: ${
+            pr.mergeCommitMessage
+          } | pr.mergeCommitAuthor: ${
+            pr.mergeCommitAuthor
+          } | pr.mergeCommitDate: ${pr.mergeCommitDate.unix().toString()}`
+        )
+
+        return releaseCommitHashes.includes(metadataHash2)
       }
 
       return releaseCommitHashes.includes(pr.mergeCommitSha)
