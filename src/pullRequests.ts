@@ -1,7 +1,7 @@
 import {Octokit, RestEndpointMethodTypes} from '@octokit/rest'
 import moment from 'moment'
 
-import {CommitInfo} from './commits'
+import {CommitInfo, MergeCommitInfo} from './commits'
 import * as core from '@actions/core'
 
 export interface PullRequestInfo {
@@ -37,18 +37,7 @@ export class PullRequests {
         repo,
         pull_number: prNumber
       })
-
-      const commitsList = await this.octokit.pulls.listCommits({
-        owner,
-        repo,
-        pull_number: prNumber,
-        per_page: 1
-      })
-      const commitAuthorName = commitsList.data[0].commit.author?.name || ''
-      const commitMessage = commitsList.data[0].commit.message
-      const commitDate = moment(
-        commitsList.data[0].commit.author?.date || pr.data.merged_at
-      )
+      const commitsList = await this.getListOfCommits(owner, repo, prNumber, 1)
 
       return {
         number: pr.data.number,
@@ -56,10 +45,12 @@ export class PullRequests {
         htmlURL: pr.data.html_url,
         mergedAt: moment(pr.data.merged_at),
         mergeCommitSha: pr.data.merge_commit_sha || '',
-        mergeCommitAuthor: commitAuthorName,
-        mergeCommitMessage: commitMessage,
-        mergeCommitDate: commitDate,
-        mergeCommitSummary: commitMessage.split('\n')[0],
+        mergeCommitAuthor: commitsList?.mergeCommitAuthor || '',
+        mergeCommitMessage: commitsList?.mergeCommitMessage || '',
+        mergeCommitDate:
+          moment(commitsList?.mergeCommitDate) || pr.data.merged_at,
+        mergeCommitSummary:
+          commitsList?.mergeCommitMessage.split('\n')[0] || '',
         author: pr.data.user?.login || '',
         repoName: pr.data.base.repo.full_name,
         labels:
@@ -80,6 +71,35 @@ export class PullRequests {
     } catch (e) {
       core.warning(
         `⚠️ Cannot find PR ${owner}/${repo}#${prNumber} - ${e.message}`
+      )
+      return null
+    }
+  }
+
+  async getListOfCommits(
+    owner: string,
+    repo: string,
+    prNumber: number,
+    perPage: number
+  ): Promise<MergeCommitInfo | null> {
+    try {
+      const commitsList = await this.octokit.pulls.listCommits({
+        owner,
+        repo,
+        pull_number: prNumber,
+        per_page: perPage
+      })
+      const commitMessage = commitsList.data[0].commit.message
+
+      return {
+        mergeCommitAuthor: commitsList.data[0].commit.author?.name || '',
+        mergeCommitMessage: commitMessage,
+        mergeCommitDate: moment(commitsList.data[0].commit.author?.date) || '',
+        mergeCommitSummary: commitMessage.split('\n')[0]
+      }
+    } catch (e) {
+      core.warning(
+        `⚠️ Could not get a list of commits: ${owner}/${repo}#${prNumber} - ${e.message}`
       )
       return null
     }
@@ -107,16 +127,11 @@ export class PullRequests {
       const prs: PullsListData = response.data as PullsListData
 
       for (const pr of prs.filter(p => !!p.merged_at)) {
-        const commitsList = await this.octokit.pulls.listCommits({
+        const commitsList = await this.getListOfCommits(
           owner,
           repo,
-          pull_number: pr.number,
-          per_page: 1
-        })
-        const commitAuthorName = commitsList.data[0].commit.author?.name || ''
-        const commitMessage = commitsList.data[0].commit.message
-        const commitDate = moment(
-          commitsList.data[0].commit.author?.date || pr.merged_at
+          pr.number,
+          1
         )
 
         mergedPRs.push({
@@ -125,10 +140,11 @@ export class PullRequests {
           htmlURL: pr.html_url,
           mergedAt: moment(pr.merged_at),
           mergeCommitSha: pr.merge_commit_sha || '',
-          mergeCommitAuthor: commitAuthorName,
-          mergeCommitMessage: commitMessage,
-          mergeCommitDate: commitDate,
-          mergeCommitSummary: commitMessage.split('\n')[0],
+          mergeCommitAuthor: commitsList?.mergeCommitAuthor || '',
+          mergeCommitMessage: commitsList?.mergeCommitMessage || '',
+          mergeCommitDate: moment(commitsList?.mergeCommitDate) || pr.merged_at,
+          mergeCommitSummary:
+            commitsList?.mergeCommitMessage.split('\n')[0] || '',
           author: pr.user?.login || '',
           repoName: pr.base.repo.full_name,
           labels:

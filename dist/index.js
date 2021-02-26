@@ -131,6 +131,7 @@ exports.DefaultConfiguration = {
     template: '${{CHANGELOG}}',
     pr_template: '- ${{TITLE}}\n   - PR: #${{NUMBER}}',
     empty_template: '- no changes',
+    use_metadata_hash: false,
     categories: [
         {
             title: '## 🚀 Features',
@@ -151,8 +152,7 @@ exports.DefaultConfiguration = {
     tag_resolver: {
         // defines the logic on how to resolve the previous tag, only relevant if `fromTag` is not specified
         method: 'semver' // defines which method to use, by default it will use `semver` (dropping all non matching tags). Alternative `sort` is also available.
-    },
-    use_metadata_hash: false
+    }
 };
 
 
@@ -403,7 +403,7 @@ class PullRequests {
         this.octokit = octokit;
     }
     getSingle(owner, repo, prNumber) {
-        var _a, _b, _c, _d, _e, _f, _g;
+        var _a, _b, _c, _d, _e;
         return __awaiter(this, void 0, void 0, function* () {
             try {
                 const pr = yield this.octokit.pulls.get({
@@ -411,36 +411,28 @@ class PullRequests {
                     repo,
                     pull_number: prNumber
                 });
-                const commitsList = yield this.octokit.pulls.listCommits({
-                    owner,
-                    repo,
-                    pull_number: prNumber,
-                    per_page: 1
-                });
-                const commitAuthorName = ((_a = commitsList.data[0].commit.author) === null || _a === void 0 ? void 0 : _a.name) || '';
-                const commitMessage = commitsList.data[0].commit.message;
-                const commitDate = moment_1.default(((_b = commitsList.data[0].commit.author) === null || _b === void 0 ? void 0 : _b.date) || pr.data.merged_at);
+                const commitsList = yield this.getListOfCommits(owner, repo, prNumber, 1);
                 return {
                     number: pr.data.number,
                     title: pr.data.title,
                     htmlURL: pr.data.html_url,
                     mergedAt: moment_1.default(pr.data.merged_at),
                     mergeCommitSha: pr.data.merge_commit_sha || '',
-                    mergeCommitAuthor: commitAuthorName,
-                    mergeCommitMessage: commitMessage,
-                    mergeCommitDate: commitDate,
-                    mergeCommitSummary: commitMessage.split('\n')[0],
-                    author: ((_c = pr.data.user) === null || _c === void 0 ? void 0 : _c.login) || '',
+                    mergeCommitAuthor: (commitsList === null || commitsList === void 0 ? void 0 : commitsList.mergeCommitAuthor) || '',
+                    mergeCommitMessage: (commitsList === null || commitsList === void 0 ? void 0 : commitsList.mergeCommitMessage) || '',
+                    mergeCommitDate: moment_1.default(commitsList === null || commitsList === void 0 ? void 0 : commitsList.mergeCommitDate) || pr.data.merged_at,
+                    mergeCommitSummary: (commitsList === null || commitsList === void 0 ? void 0 : commitsList.mergeCommitMessage.split('\n')[0]) || '',
+                    author: ((_a = pr.data.user) === null || _a === void 0 ? void 0 : _a.login) || '',
                     repoName: pr.data.base.repo.full_name,
-                    labels: ((_d = pr.data.labels) === null || _d === void 0 ? void 0 : _d.map(function (label) {
+                    labels: ((_b = pr.data.labels) === null || _b === void 0 ? void 0 : _b.map(function (label) {
                         return label.name || '';
                     })) || [],
-                    milestone: ((_e = pr.data.milestone) === null || _e === void 0 ? void 0 : _e.title) || '',
+                    milestone: ((_c = pr.data.milestone) === null || _c === void 0 ? void 0 : _c.title) || '',
                     body: pr.data.body || '',
-                    assignees: ((_f = pr.data.assignees) === null || _f === void 0 ? void 0 : _f.map(function (asignee) {
+                    assignees: ((_d = pr.data.assignees) === null || _d === void 0 ? void 0 : _d.map(function (asignee) {
                         return (asignee === null || asignee === void 0 ? void 0 : asignee.login) || '';
                     })) || [],
-                    requestedReviewers: ((_g = pr.data.requested_reviewers) === null || _g === void 0 ? void 0 : _g.map(function (reviewer) {
+                    requestedReviewers: ((_e = pr.data.requested_reviewers) === null || _e === void 0 ? void 0 : _e.map(function (reviewer) {
                         return (reviewer === null || reviewer === void 0 ? void 0 : reviewer.login) || '';
                     })) || []
                 };
@@ -451,9 +443,33 @@ class PullRequests {
             }
         });
     }
+    getListOfCommits(owner, repo, prNumber, perPage) {
+        var _a, _b;
+        return __awaiter(this, void 0, void 0, function* () {
+            try {
+                const commitsList = yield this.octokit.pulls.listCommits({
+                    owner,
+                    repo,
+                    pull_number: prNumber,
+                    per_page: perPage
+                });
+                const commitMessage = commitsList.data[0].commit.message;
+                return {
+                    mergeCommitAuthor: ((_a = commitsList.data[0].commit.author) === null || _a === void 0 ? void 0 : _a.name) || '',
+                    mergeCommitMessage: commitMessage,
+                    mergeCommitDate: moment_1.default((_b = commitsList.data[0].commit.author) === null || _b === void 0 ? void 0 : _b.date) || '',
+                    mergeCommitSummary: commitMessage.split('\n')[0]
+                };
+            }
+            catch (e) {
+                core.warning(`⚠️ Could not get a list of commits: ${owner}/${repo}#${prNumber} - ${e.message}`);
+                return null;
+            }
+        });
+    }
     getBetweenDates(owner, repo, fromDate, toDate, maxPullRequests) {
         var e_1, _a;
-        var _b, _c, _d, _e, _f, _g, _h;
+        var _b, _c, _d, _e, _f;
         return __awaiter(this, void 0, void 0, function* () {
             const mergedPRs = [];
             const options = this.octokit.pulls.list.endpoint.merge({
@@ -465,40 +481,32 @@ class PullRequests {
                 direction: 'desc'
             });
             try {
-                for (var _j = __asyncValues(this.octokit.paginate.iterator(options)), _k; _k = yield _j.next(), !_k.done;) {
-                    const response = _k.value;
+                for (var _g = __asyncValues(this.octokit.paginate.iterator(options)), _h; _h = yield _g.next(), !_h.done;) {
+                    const response = _h.value;
                     const prs = response.data;
                     for (const pr of prs.filter(p => !!p.merged_at)) {
-                        const commitsList = yield this.octokit.pulls.listCommits({
-                            owner,
-                            repo,
-                            pull_number: pr.number,
-                            per_page: 1
-                        });
-                        const commitAuthorName = ((_b = commitsList.data[0].commit.author) === null || _b === void 0 ? void 0 : _b.name) || '';
-                        const commitMessage = commitsList.data[0].commit.message;
-                        const commitDate = moment_1.default(((_c = commitsList.data[0].commit.author) === null || _c === void 0 ? void 0 : _c.date) || pr.merged_at);
+                        const commitsList = yield this.getListOfCommits(owner, repo, pr.number, 1);
                         mergedPRs.push({
                             number: pr.number,
                             title: pr.title,
                             htmlURL: pr.html_url,
                             mergedAt: moment_1.default(pr.merged_at),
                             mergeCommitSha: pr.merge_commit_sha || '',
-                            mergeCommitAuthor: commitAuthorName,
-                            mergeCommitMessage: commitMessage,
-                            mergeCommitDate: commitDate,
-                            mergeCommitSummary: commitMessage.split('\n')[0],
-                            author: ((_d = pr.user) === null || _d === void 0 ? void 0 : _d.login) || '',
+                            mergeCommitAuthor: (commitsList === null || commitsList === void 0 ? void 0 : commitsList.mergeCommitAuthor) || '',
+                            mergeCommitMessage: (commitsList === null || commitsList === void 0 ? void 0 : commitsList.mergeCommitMessage) || '',
+                            mergeCommitDate: moment_1.default(commitsList === null || commitsList === void 0 ? void 0 : commitsList.mergeCommitDate) || pr.merged_at,
+                            mergeCommitSummary: (commitsList === null || commitsList === void 0 ? void 0 : commitsList.mergeCommitMessage.split('\n')[0]) || '',
+                            author: ((_b = pr.user) === null || _b === void 0 ? void 0 : _b.login) || '',
                             repoName: pr.base.repo.full_name,
-                            labels: ((_e = pr.labels) === null || _e === void 0 ? void 0 : _e.map(function (label) {
+                            labels: ((_c = pr.labels) === null || _c === void 0 ? void 0 : _c.map(function (label) {
                                 return label.name || '';
                             })) || [],
-                            milestone: ((_f = pr.milestone) === null || _f === void 0 ? void 0 : _f.title) || '',
+                            milestone: ((_d = pr.milestone) === null || _d === void 0 ? void 0 : _d.title) || '',
                             body: pr.body || '',
-                            assignees: ((_g = pr.assignees) === null || _g === void 0 ? void 0 : _g.map(function (asignee) {
+                            assignees: ((_e = pr.assignees) === null || _e === void 0 ? void 0 : _e.map(function (asignee) {
                                 return (asignee === null || asignee === void 0 ? void 0 : asignee.login) || '';
                             })) || [],
-                            requestedReviewers: ((_h = pr.requested_reviewers) === null || _h === void 0 ? void 0 : _h.map(function (reviewer) {
+                            requestedReviewers: ((_f = pr.requested_reviewers) === null || _f === void 0 ? void 0 : _f.map(function (reviewer) {
                                 return (reviewer === null || reviewer === void 0 ? void 0 : reviewer.login) || '';
                             })) || []
                         });
@@ -518,7 +526,7 @@ class PullRequests {
             catch (e_1_1) { e_1 = { error: e_1_1 }; }
             finally {
                 try {
-                    if (_k && !_k.done && (_a = _j.return)) yield _a.call(_j);
+                    if (_h && !_h.done && (_a = _g.return)) yield _a.call(_g);
                 }
                 finally { if (e_1) throw e_1.error; }
             }
@@ -695,13 +703,12 @@ class ReleaseNotes {
             core.info(`ℹ️ Retrieved ${pullRequests.length} merged PRs for ${owner}/${repo}`);
             const prCommits = pullRequestsApi.filterCommits(commits, configuration.exclude_merge_branches ||
                 configuration_1.DefaultConfiguration.exclude_merge_branches);
-            core.info(`ℹ️ Retrieved ${prCommits.length} LEO release commits for ${owner}/${repo}`);
+            core.info(`ℹ️ Retrieved ${prCommits.length} release commits for ${owner}/${repo}`);
             core.info(`configuration.use_metadata_hash: ${configuration.use_metadata_hash}`);
             // create array of commits for this release
             const releaseCommitHashes = prCommits.map(commmit => {
                 if (configuration.use_metadata_hash) {
                     const metadataHash = this.generateMetadataHash(commmit);
-                    core.info(`Generating commit info from commit.metadataHash: ${metadataHash} | commmit.sha: ${commmit.sha} | commmit.summary: ${commmit.summary} | commmit.message: ${commmit.message} | commmit.author: ${commmit.author} | commmit.date: ${commmit.date.unix().toString()}`);
                     return metadataHash;
                 }
                 return commmit.sha;
@@ -711,7 +718,6 @@ class ReleaseNotes {
                 if (configuration.use_metadata_hash) {
                     const commit = this.createCommitInfo(pr);
                     const metadataHash2 = this.generateMetadataHash(commit);
-                    core.info(`Generating commit info from pr. metadataHash2: ${metadataHash2} | pr.mergeCommitSha: ${pr.mergeCommitSha} | pr.mergeCommitSummary: ${pr.mergeCommitSummary} | pr.mergeCommitMessage: ${pr.mergeCommitMessage} | pr.mergeCommitAuthor: ${pr.mergeCommitAuthor} | pr.mergeCommitDate: ${pr.mergeCommitDate.unix().toString()}`);
                     return releaseCommitHashes.includes(metadataHash2);
                 }
                 return releaseCommitHashes.includes(pr.mergeCommitSha);
