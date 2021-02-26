@@ -37,7 +37,7 @@ export class PullRequests {
         repo,
         pull_number: prNumber
       })
-      const commitsList = await this.getLastCommit(owner, repo, prNumber, 1)
+      const commitsList = await this.getFirstCommit(owner, repo, prNumber, 1)
 
       return {
         number: pr.data.number,
@@ -74,7 +74,7 @@ export class PullRequests {
     }
   }
 
-  async getLastCommit(
+  async getFirstCommit(
     owner: string,
     repo: string,
     prNumber: number,
@@ -126,7 +126,7 @@ export class PullRequests {
       const prs: PullsListData = response.data as PullsListData
 
       for (const pr of prs.filter(p => !!p.merged_at)) {
-        const commitsList = await this.getLastCommit(owner, repo, pr.number, 1)
+        const commitsList = await this.getFirstCommit(owner, repo, pr.number, 1)
 
         mergedPRs.push({
           number: pr.number,
