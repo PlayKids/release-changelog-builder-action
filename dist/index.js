@@ -415,7 +415,7 @@ class PullRequests {
                     owner,
                     repo,
                     pull_number: prNumber,
-                    per_page: 2
+                    per_page: 1
                 });
                 const commitAuthorName = ((_a = commitsList.data[0].commit.author) === null || _a === void 0 ? void 0 : _a.name) || '';
                 const commitMessage = commitsList.data[0].commit.message;
@@ -473,7 +473,7 @@ class PullRequests {
                             owner,
                             repo,
                             pull_number: pr.number,
-                            per_page: 2
+                            per_page: 1
                         });
                         const commitAuthorName = ((_b = commitsList.data[0].commit.author) === null || _b === void 0 ? void 0 : _b.name) || '';
                         const commitMessage = commitsList.data[0].commit.message;
@@ -700,8 +700,9 @@ class ReleaseNotes {
             // create array of commits for this release
             const releaseCommitHashes = prCommits.map(commmit => {
                 if (configuration.use_metadata_hash) {
-                    core.info(`Generating commit info from commit. commmit.sha: ${commmit.sha} | commmit.summary: ${commmit.summary} | commmit.message: ${commmit.message} | commmit.author: ${commmit.author} | commmit.date: ${commmit.date.unix().toString()}`);
-                    return this.generateMetadataHash(commmit);
+                    const metadataHash = this.generateMetadataHash(commmit);
+                    core.info(`Generating commit info from commit.metadataHash: ${metadataHash} | commmit.sha: ${commmit.sha} | commmit.summary: ${commmit.summary} | commmit.message: ${commmit.message} | commmit.author: ${commmit.author} | commmit.date: ${commmit.date.unix().toString()}`);
+                    return metadataHash;
                 }
                 return commmit.sha;
             });
@@ -709,14 +710,15 @@ class ReleaseNotes {
             return pullRequests.filter(pr => {
                 if (configuration.use_metadata_hash) {
                     const commit = this.createCommitInfo(pr);
-                    return releaseCommitHashes.includes(this.generateMetadataHash(commit));
+                    const metadataHash2 = this.generateMetadataHash(commit);
+                    core.info(`Generating commit info from pr. metadataHash2: ${metadataHash2} | pr.mergeCommitSha: ${pr.mergeCommitSha} | pr.mergeCommitSummary: ${pr.mergeCommitSummary} | pr.mergeCommitMessage: ${pr.mergeCommitMessage} | pr.mergeCommitAuthor: ${pr.mergeCommitAuthor} | pr.mergeCommitDate: ${pr.mergeCommitDate.unix().toString()}`);
+                    return releaseCommitHashes.includes(metadataHash2);
                 }
                 return releaseCommitHashes.includes(pr.mergeCommitSha);
             });
         });
     }
     createCommitInfo(pr) {
-        core.info(`Generating commit info from pr. pr.mergeCommitSha: ${pr.mergeCommitSha} | pr.mergeCommitSummary: ${pr.mergeCommitSummary} | pr.mergeCommitMessage: ${pr.mergeCommitMessage} | pr.mergeCommitAuthor: ${pr.mergeCommitAuthor} | pr.mergeCommitDate: ${pr.mergeCommitDate.unix().toString()}`);
         return {
             sha: pr.mergeCommitSha,
             summary: pr.mergeCommitSummary,

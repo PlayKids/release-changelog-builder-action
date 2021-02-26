@@ -131,8 +131,9 @@ export class ReleaseNotes {
     // create array of commits for this release
     const releaseCommitHashes = prCommits.map(commmit => {
       if (configuration.use_metadata_hash) {
+        const metadataHash = this.generateMetadataHash(commmit)
         core.info(
-          `Generating commit info from commit. commmit.sha: ${
+          `Generating commit info from commit.metadataHash: ${metadataHash} | commmit.sha: ${
             commmit.sha
           } | commmit.summary: ${commmit.summary} | commmit.message: ${
             commmit.message
@@ -140,7 +141,8 @@ export class ReleaseNotes {
             commmit.author
           } | commmit.date: ${commmit.date.unix().toString()}`
         )
-        return this.generateMetadataHash(commmit)
+
+        return metadataHash
       }
 
       return commmit.sha
@@ -150,7 +152,20 @@ export class ReleaseNotes {
     return pullRequests.filter(pr => {
       if (configuration.use_metadata_hash) {
         const commit = this.createCommitInfo(pr)
-        return releaseCommitHashes.includes(this.generateMetadataHash(commit))
+        const metadataHash2 = this.generateMetadataHash(commit)
+        core.info(
+          `Generating commit info from pr. metadataHash2: ${metadataHash2} | pr.mergeCommitSha: ${
+            pr.mergeCommitSha
+          } | pr.mergeCommitSummary: ${
+            pr.mergeCommitSummary
+          } | pr.mergeCommitMessage: ${
+            pr.mergeCommitMessage
+          } | pr.mergeCommitAuthor: ${
+            pr.mergeCommitAuthor
+          } | pr.mergeCommitDate: ${pr.mergeCommitDate.unix().toString()}`
+        )
+
+        return releaseCommitHashes.includes(metadataHash2)
       }
 
       return releaseCommitHashes.includes(pr.mergeCommitSha)
@@ -158,18 +173,6 @@ export class ReleaseNotes {
   }
 
   private createCommitInfo(pr: PullRequestInfo): CommitInfo {
-    core.info(
-      `Generating commit info from pr. pr.mergeCommitSha: ${
-        pr.mergeCommitSha
-      } | pr.mergeCommitSummary: ${
-        pr.mergeCommitSummary
-      } | pr.mergeCommitMessage: ${
-        pr.mergeCommitMessage
-      } | pr.mergeCommitAuthor: ${
-        pr.mergeCommitAuthor
-      } | pr.mergeCommitDate: ${pr.mergeCommitDate.unix().toString()}`
-    )
-
     return {
       sha: pr.mergeCommitSha,
       summary: pr.mergeCommitSummary,

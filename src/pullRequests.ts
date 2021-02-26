@@ -42,7 +42,7 @@ export class PullRequests {
         owner,
         repo,
         pull_number: prNumber,
-        per_page: 2
+        per_page: 1
       })
       const commitAuthorName = commitsList.data[0].commit.author?.name || ''
       const commitMessage = commitsList.data[0].commit.message
@@ -111,7 +111,7 @@ export class PullRequests {
           owner,
           repo,
           pull_number: pr.number,
-          per_page: 2
+          per_page: 1
         })
         const commitAuthorName = commitsList.data[0].commit.author?.name || ''
         const commitMessage = commitsList.data[0].commit.message
